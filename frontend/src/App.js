@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import ChatPanel from "./components/ChatPanel";
 import { analyzeText, analyzeImage, sendReply } from "./api";
 import "./App.css";
@@ -6,22 +6,21 @@ import "./App.css";
 const SENDER_ID = "user1";
 const RECEIVER_ID = "user2";
 
-let nextId = 1;
-
 function App() {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
+  const nextIdRef = useRef(1);
 
   const addMessage = useCallback((msg) => {
-    setMessages((prev) => [...prev, { ...msg, id: nextId++ }]);
+    const id = nextIdRef.current++;
+    setMessages((prev) => [...prev, { ...msg, id }]);
+    return id;
   }, []);
 
   const handleSendText = useCallback(
     async (text) => {
-      // Add message immediately (optimistic)
       const msg = { type: "text", text, analysis: null };
-      const id = nextId;
-      addMessage(msg);
+      const id = addMessage(msg);
       setInputValue("");
 
       try {
@@ -47,8 +46,7 @@ function App() {
     async (file) => {
       const imageUrl = URL.createObjectURL(file);
       const msg = { type: "image", imageUrl, text: file.name, analysis: null };
-      const id = nextId;
-      addMessage(msg);
+      const id = addMessage(msg);
 
       try {
         const result = await analyzeImage(SENDER_ID, RECEIVER_ID, file);
