@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartShield AI – Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="logo">🛡️ SmartShield AI</div>
+    <p class="tagline">Digital Boundary Enforcement System</p>
+  </header>
+
+  <main>
+    <!-- Configuration Panel -->
+    <section class="config-panel card">
+      <h2>⚙️ Session Configuration</h2>
+      <div class="form-row">
+        <label for="session-id">Session ID</label>
+        <input id="session-id" type="text" placeholder="Auto-generated" />
+      </div>
+      <div class="form-row">
+        <label for="sender-id">Sender ID</label>
+        <input id="sender-id" type="text" value="demo_sender_1" />
+      </div>
+      <div class="form-row">
+        <label for="api-base">API Base URL</label>
+        <input id="api-base" type="text" value="http://localhost:8000/api/v1" />
+      </div>
+      <button id="btn-new-session" class="btn-secondary">🔄 New Session</button>
+      <button id="btn-clear-session" class="btn-danger">🗑️ Clear Session Data</button>
+    </section>
+
+    <div class="demo-grid">
+      <!-- Text Analysis -->
+      <section class="card">
+        <h2>💬 Text Message Analysis</h2>
+        <div class="quick-samples">
+          <span class="label">Quick samples:</span>
+          <button class="sample-btn" data-text="Hey! How are you doing today?">😊 Safe</button>
+          <button class="sample-btn" data-text="You're an idiot and nobody likes you">😠 Insult</button>
+          <button class="sample-btn" data-text="I know where you live and you'll regret this">🚨 Threat</button>
+          <button class="sample-btn" data-text="Send me nude pictures right now">🔞 Sexual</button>
+        </div>
+        <textarea id="text-input" placeholder="Type a message to analyze..." rows="4"></textarea>
+        <div class="btn-row">
+          <button id="btn-analyze-text" class="btn-primary">Analyze Text →</button>
+          <button id="btn-flood-demo" class="btn-secondary">⚡ Flood Demo (10x)</button>
+        </div>
+      </section>
+
+      <!-- Image Analysis -->
+      <section class="card">
+        <h2>🖼️ Image Analysis</h2>
+        <div class="upload-zone" id="upload-zone">
+          <p>📁 Drop an image here or click to upload</p>
+          <input id="file-input" type="file" accept="image/*" />
+        </div>
+        <div id="image-preview-container" style="display:none">
+          <img id="image-preview" alt="Preview" />
+          <div id="image-blur-overlay" class="blur-overlay" style="display:none">🔞 BLURRED</div>
+        </div>
+        <button id="btn-analyze-image" class="btn-primary" disabled>Analyze Image →</button>
+      </section>
+    </div>
+
+    <!-- Results Panel -->
+    <section id="results-panel" class="card results-card" style="display:none">
+      <h2>📊 Analysis Results</h2>
+      <div class="score-display">
+        <div class="creep-score-circle" id="score-circle">
+          <span id="score-value">0.00</span>
+          <small>Creep Score</small>
+        </div>
+        <div class="disposition-badge" id="disposition-badge">—</div>
+      </div>
+
+      <div class="sub-scores">
+        <div class="sub-score">
+          <span class="sub-label">Text Score</span>
+          <div class="progress-bar"><div class="progress-fill" id="text-bar"></div></div>
+          <span class="sub-value" id="text-score-val">0.00</span>
+        </div>
+        <div class="sub-score">
+          <span class="sub-label">Image Score</span>
+          <div class="progress-bar"><div class="progress-fill" id="image-bar"></div></div>
+          <span class="sub-value" id="image-score-val">0.00</span>
+        </div>
+        <div class="sub-score">
+          <span class="sub-label">Behavior Score</span>
+          <div class="progress-bar"><div class="progress-fill" id="behavior-bar"></div></div>
+          <span class="sub-value" id="behavior-score-val">0.00</span>
+        </div>
+      </div>
+
+      <div id="reasons-section" style="display:none">
+        <h3>🧠 AI Reasoning (XAI)</h3>
+        <ul id="reasons-list"></ul>
+      </div>
+
+      <div id="categories-section" style="display:none">
+        <h3>🏷️ Detected Categories</h3>
+        <div id="categories-list" class="tag-list"></div>
+      </div>
+
+      <div class="meta-row">
+        <small id="session-display"></small>
+        <small id="timing-display"></small>
+      </div>
+    </section>
+
+    <!-- Message Log -->
+    <section class="card">
+      <h2>📋 Session Message Log</h2>
+      <div id="message-log" class="message-log">
+        <p class="log-empty">No messages analyzed yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>🛡️ SmartShield AI – Privacy-first. Explainable. Real-time.
+       &nbsp;|&nbsp; <a href="http://localhost:8000/docs" target="_blank">API Docs</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
