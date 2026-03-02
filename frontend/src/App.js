@@ -68,7 +68,7 @@ function App() {
 
   const handleReply = useCallback(async () => {
     try {
-      await sendReply(RECEIVER_ID, SENDER_ID);
+      await sendReply(SENDER_ID, RECEIVER_ID);
     } catch {
       // Ignore errors silently
     }

@@ -62,9 +62,9 @@ export default function MessageBubble({ message, side }) {
           <div className="mt-1 text-right">
             <span
               className={`text-xs font-mono px-1.5 py-0.5 rounded ${
-                creepScore >= 70
+                creepScore >= 0.7
                   ? "bg-red-100 text-red-700"
-                  : creepScore >= 40
+                  : creepScore >= 0.4
                   ? "bg-yellow-100 text-yellow-700"
                   : "bg-green-100 text-green-700"
               }`}

@@ -48,6 +48,11 @@ def calculate_creep_score(
 ) -> float:
     """Calculate the aggregate Creep Score.
 
+    Uses a weighted sum with behavioral amplification: when the behavioral
+    penalty exceeds 0.5, an additional flooding boost is applied because
+    persistent message flooding is independently concerning regardless of
+    the content of individual messages.
+
     Args:
         text_toxicity: Text toxicity probability [0, 1].
         image_nsfw: Image NSFW probability [0, 1].
@@ -57,6 +62,9 @@ def calculate_creep_score(
         Creep Score between 0.0 and 1.0.
     """
     score = W_TEXT * text_toxicity + W_IMAGE * image_nsfw + W_BEHAVIOR * behavioral_penalty
+    # Behavioral amplification: persistent flooding independently increases risk
+    if behavioral_penalty > 0.5:
+        score += (behavioral_penalty - 0.5) * 1.0
     return min(max(score, 0.0), 1.0)
 
 

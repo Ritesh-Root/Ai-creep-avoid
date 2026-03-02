@@ -35,8 +35,8 @@ class TestCreepScore:
         assert calculate_creep_score(0.0, 0.0, 0.0) == pytest.approx(0.0)
 
     def test_all_ones(self):
-        expected = W_TEXT + W_IMAGE + W_BEHAVIOR
-        assert calculate_creep_score(1.0, 1.0, 1.0) == pytest.approx(expected)
+        # With behavioral amplification, score would exceed 1.0 but is clamped
+        assert calculate_creep_score(1.0, 1.0, 1.0) == pytest.approx(1.0)
 
     def test_text_only(self):
         assert calculate_creep_score(text_toxicity=0.8) == pytest.approx(W_TEXT * 0.8)
@@ -48,6 +48,22 @@ class TestCreepScore:
         assert calculate_creep_score(behavioral_penalty=0.5) == pytest.approx(
             W_BEHAVIOR * 0.5
         )
+
+    def test_behavioral_amplification(self):
+        """When behavioral penalty exceeds 0.5, flooding boost kicks in."""
+        # B=0.8: base = 0.20*0.8 = 0.16, boost = (0.8-0.5)*1.0 = 0.30
+        score = calculate_creep_score(behavioral_penalty=0.8)
+        assert score == pytest.approx(W_BEHAVIOR * 0.8 + 0.3)
+
+    def test_flooding_triggers_blur(self):
+        """8+ unanswered messages should trigger blur action."""
+        score = calculate_creep_score(behavioral_penalty=0.8)
+        assert determine_action(score) == "blur"
+
+    def test_flooding_triggers_block(self):
+        """10+ unanswered messages should trigger block action."""
+        score = calculate_creep_score(behavioral_penalty=1.0)
+        assert determine_action(score) == "block"
 
     def test_clamped_to_one(self):
         # Even with extreme inputs, score stays <= 1.0
