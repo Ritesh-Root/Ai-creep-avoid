@@ -1,134 +1,159 @@
-"""Tests for the FastAPI endpoints."""
+"""Integration tests for the FastAPI routes (mock models, no GPU needed)."""
+
+import os
+os.environ["USE_MOCK_MODELS"] = "true"
 
 import io
-
 import pytest
-from fastapi.testclient import TestClient
+import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
+from PIL import Image
 
-from backend.main import app, tracker
-
-
-@pytest.fixture(autouse=True)
-def _reset_tracker():
-    """Reset the behavioral tracker between tests."""
-    tracker._counters.clear()
-    yield
-    tracker._counters.clear()
+from app.main import app
 
 
-client = TestClient(app)
+@pytest_asyncio.fixture(scope="module")
+async def client():
+    from app.models.text_analyzer import TextAnalyzer
+    from app.models.image_analyzer import ImageAnalyzer
+    from app.models.behavioral_tracker import BehavioralTracker
+    from app.utils.privacy import SessionStore
+
+    # Manually initialize app state (lifespan is not triggered by ASGITransport in tests)
+    session_store = SessionStore()
+    app.state.text_analyzer = TextAnalyzer()
+    app.state.image_analyzer = ImageAnalyzer()
+    app.state.session_store = session_store
+    app.state.behavioral_tracker = BehavioralTracker(session_store=session_store)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+    app.state.session_store.clear_all()
 
 
-class TestHealthCheck:
-    def test_health(self):
-        resp = client.get("/health")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["status"] == "healthy"
+@pytest.mark.asyncio
+async def test_health(client):
+    response = await client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
 
 
-class TestAnalyzeText:
-    def test_safe_message(self):
-        resp = client.post(
-            "/analyze/text",
-            json={"sender_id": "u1", "receiver_id": "u2", "text": "Hello, how are you?"},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert 0.0 <= data["creep_score"] <= 1.0
-        assert data["action"] in ("allow", "blur", "block")
-        assert "reason" in data
-
-    def test_response_includes_behavioral_penalty(self):
-        # Send multiple messages to accumulate behavioral penalty
-        for _ in range(5):
-            resp = client.post(
-                "/analyze/text",
-                json={"sender_id": "u1", "receiver_id": "u2", "text": "hey"},
-            )
-        data = resp.json()
-        assert data["behavioral_penalty"] > 0.0
-
-    def test_creep_score_increases_with_flooding(self):
-        """Sending many unanswered messages should increase the creep score."""
-        scores = []
-        for i in range(12):
-            resp = client.post(
-                "/analyze/text",
-                json={"sender_id": "u1", "receiver_id": "u2", "text": "hi"},
-            )
-            scores.append(resp.json()["creep_score"])
-        # Score should generally increase
-        assert scores[-1] >= scores[0]
-
-    def test_missing_fields_returns_422(self):
-        resp = client.post("/analyze/text", json={"sender_id": "u1"})
-        assert resp.status_code == 422
+@pytest.mark.asyncio
+async def test_analyze_text_clean_message(client):
+    payload = {
+        "content": "Hey! How are you doing today?",
+        "sender_id": "user1",
+        "session_id": "sess_test_1",
+    }
+    response = await client.post("/api/v1/analyze/text", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "creep_score" in data
+    assert "disposition" in data
+    assert data["creep_score"] < 0.50
+    assert data["disposition"] in ("ALLOW", "WARN")
 
 
-class TestAnalyzeImage:
-    def test_upload_image(self):
-        # Create a minimal valid PNG image
-        from PIL import Image
-
-        img = Image.new("RGB", (10, 10), color="red")
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
-
-        resp = client.post(
-            "/analyze/image",
-            data={"sender_id": "u1", "receiver_id": "u2"},
-            files={"file": ("test.png", buf, "image/png")},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert 0.0 <= data["creep_score"] <= 1.0
-        assert data["action"] in ("allow", "blur", "block")
+@pytest.mark.asyncio
+async def test_analyze_text_threatening_message(client):
+    payload = {
+        "content": "I know where you live and you'll regret this",
+        "sender_id": "user_bad",
+        "session_id": "sess_test_2",
+    }
+    response = await client.post("/api/v1/analyze/text", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["creep_score"] >= 0.40
+    assert data["disposition"] in ("WARN", "BLUR", "BLOCK")
+    assert len(data["reasons"]) > 0
 
 
-class TestReply:
-    def test_reply_resets_counter(self):
-        # Build up a count
-        for _ in range(5):
-            client.post(
-                "/analyze/text",
-                json={"sender_id": "u1", "receiver_id": "u2", "text": "hey"},
-            )
-
-        # Record a reply
-        resp = client.post(
-            "/reply",
-            json={"sender_id": "u1", "receiver_id": "u2"},
-        )
-        assert resp.status_code == 200
-
-        # Next message should show lower behavioral penalty
-        resp = client.post(
-            "/analyze/text",
-            json={"sender_id": "u1", "receiver_id": "u2", "text": "hey again"},
-        )
-        data = resp.json()
-        assert data["behavioral_penalty"] <= 0.1
+@pytest.mark.asyncio
+async def test_analyze_text_returns_session_id(client):
+    payload = {
+        "content": "Hello",
+        "sender_id": "user2",
+    }
+    response = await client.post("/api/v1/analyze/text", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "session_id" in data
+    assert len(data["session_id"]) > 0
 
 
-class TestReset:
-    def test_reset_tracking(self):
-        for _ in range(5):
-            client.post(
-                "/analyze/text",
-                json={"sender_id": "u1", "receiver_id": "u2", "text": "hey"},
-            )
+@pytest.mark.asyncio
+async def test_analyze_text_flood_behavior(client):
+    """Sending many rapid messages should raise the behavior score."""
+    session_id = "sess_flood_test"
+    last_score = 0.0
+    for i in range(8):
+        payload = {
+            "content": "Hey",
+            "sender_id": "flood_user",
+            "session_id": session_id,
+        }
+        response = await client.post("/api/v1/analyze/text", json=payload)
+        assert response.status_code == 200
+        last_score = response.json()["behavior_score"]
+    assert last_score > 0.0, "Flood behavior should raise behavior score"
 
-        resp = client.post(
-            "/reset",
-            json={"sender_id": "u1", "receiver_id": "u2"},
-        )
-        assert resp.status_code == 200
 
-        resp = client.post(
-            "/analyze/text",
-            json={"sender_id": "u1", "receiver_id": "u2", "text": "hello"},
-        )
-        data = resp.json()
-        assert data["behavioral_penalty"] <= 0.1
+@pytest.mark.asyncio
+async def test_analyze_image_blue(client):
+    """A plain blue image should get a low NSFW score."""
+    img = Image.new("RGB", (100, 100), color=(0, 0, 200))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    response = await client.post(
+        "/api/v1/analyze/image",
+        data={"session_id": "sess_img_1", "sender_id": "img_user"},
+        files={"file": ("test.jpg", buf, "image/jpeg")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["image_score"] < 0.40
+
+
+@pytest.mark.asyncio
+async def test_analyze_image_invalid_file_type(client):
+    response = await client.post(
+        "/api/v1/analyze/image",
+        data={"session_id": "sess_img_2", "sender_id": "img_user2"},
+        files={"file": ("test.txt", b"not an image", "text/plain")},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_record_reply(client):
+    response = await client.post(
+        "/api/v1/reply",
+        json={"session_id": "sess_reply_1", "sender_id": "reply_user"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_delete_session(client):
+    response = await client.delete("/api/v1/session/sess_to_delete")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_processing_time_present(client):
+    payload = {
+        "content": "Hello world",
+        "sender_id": "timer_user",
+        "session_id": "sess_timer",
+    }
+    response = await client.post("/api/v1/analyze/text", json=payload)
+    data = response.json()
+    assert "processing_time_ms" in data
+    assert data["processing_time_ms"] >= 0
