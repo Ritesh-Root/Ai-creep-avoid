@@ -1,0 +1,14 @@
+.blur-sm {
+  filter: blur(4px);
+}
+
+.blur-lg {
+  filter: blur(12px);
+}
+
+.app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
