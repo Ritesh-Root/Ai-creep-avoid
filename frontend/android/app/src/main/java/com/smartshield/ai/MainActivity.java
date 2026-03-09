@@ -1,0 +1,5 @@
+package com.smartshield.ai;
+
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {}
