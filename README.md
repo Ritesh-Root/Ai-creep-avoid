@@ -2,6 +2,16 @@
 
 > **Hackathon-Ready | Privacy-First | Explainable AI | Real-Time Protection**
 
+> **Note**: This repository contains two frontend implementations merged from separate branches:
+> - **HTML/JS frontend** (`frontend/index.html`, `frontend/app.js`) – lightweight demo UI
+> - **React frontend** (`frontend/src/`) – full React + TailwindCSS SPA
+>
+> It also contains two backend implementations:
+> - **Structured backend** (`backend/app/`) – modular FastAPI app with full test suite
+> - **Flat backend** (`backend/main.py`, `backend/scoring.py`) – simpler single-file approach
+
+> **Hackathon-Ready | Privacy-First | Explainable AI | Real-Time Protection**
+
 ---
 
 ## 1. Problem Statement

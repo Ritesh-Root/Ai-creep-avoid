@@ -6,9 +6,6 @@ __pycache__/
 dist/
 build/
 .eggs/
-.venv/
-venv/
-env/
 *.egg
 
 # Pytest
@@ -16,17 +13,28 @@ env/
 .coverage
 htmlcov/
 
-# Environment
-.env
-*.env
+# Node / React
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
 
-# HuggingFace model cache (can be large)
-# models/
-
-# macOS
-.DS_Store
-
-# Editor
+# IDE / Editor
 .vscode/
 .idea/
 *.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env
+.venv/
+venv/
+env/
+
+# HuggingFace model cache (can be large)
+# models/
